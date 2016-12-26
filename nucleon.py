@@ -1,327 +1,12 @@
 # !/usr/bin/python
 # coding=utf8
 
-# 计算机综合课程设计：代码编辑器
+# 计算机综合课程设计：轻量级IDE
 # Created by Shengjia Yan @2016-12-19
 
-import sys
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-
-# 侧边栏
-class SideBar(QWidget):
-    def __init__(self, parent = None):
-        QWidget.__init__(self, parent)
-
-        self.setMinimumWidth(30)
-        # self.setMaximumWidth(350)
-
-        self.setAutoFillBackground(True)
-        p = self.palette()
-        p.setColor(QPalette.Window, QColor("#080808"))
-        self.setPalette(p)
-
-
-# 控制台
-class Console(QWidget):
-    def __init__(self, parent = None):
-        QWidget.__init__(self, parent)
-
-        self.setMinimumHeight(30)
-        # self.setMaximumHeight(350)
-
-        self.setAutoFillBackground(True)
-        p = self.palette()
-        p.setColor(QPalette.Window, QColor("#080808"))
-        self.setPalette(p)
-
-
-# 带行号的文本编辑框
-class LNTextEdit(QFrame):
-
-    class NumberBar(QWidget):
-
-        def __init__(self, edit):
-            QWidget.__init__(self, edit)
-
-            self.edit = edit
-            self.adjustWidth(1)
-
-        def paintEvent(self, event):
-            self.edit.numberbarPaint(self, event)
-            QWidget.paintEvent(self, event)
-
-        def adjustWidth(self, count):
-            width = self.fontMetrics().width(unicode(count)) + 10
-            if self.width() != width:
-                self.setFixedWidth(width)
-
-        def updateContents(self, rect, scroll):
-            if scroll:
-                self.scroll(0, scroll)
-            else:
-                # It would be nice to do
-                # self.update(0, rect.y(), self.width(), rect.height())
-                # But we can't because it will not remove the bold on the
-                # current line if word wrap is enabled and a new block is
-                # selected.
-                self.update()
-
-
-    class PlainTextEdit(QPlainTextEdit):
-
-        def __init__(self, *args):
-            QPlainTextEdit.__init__(self, *args)
-
-            self.setFrameStyle(QFrame.NoFrame)
-            self.highlight()
-            #self.setLineWrapMode(QPlainTextEdit.NoWrap)
-
-            self.cursorPositionChanged.connect(self.highlight)
-
-        def highlight(self):
-            hi_selection = QTextEdit.ExtraSelection()
-
-            hi_selection.format.setBackground(self.palette().alternateBase())
-            hi_selection.format.setProperty(QTextFormat.FullWidthSelection, QVariant(True))
-            hi_selection.cursor = self.textCursor()
-            hi_selection.cursor.clearSelection()
-
-            self.setExtraSelections([hi_selection])
-
-        def numberbarPaint(self, number_bar, event):
-            font_metrics = self.fontMetrics()
-            current_line = self.document().findBlock(self.textCursor().position()).blockNumber() + 1
-
-            block = self.firstVisibleBlock()
-            line_count = block.blockNumber()
-            painter = QPainter(number_bar)
-            painter.fillRect(event.rect(), self.palette().base())
-
-            # Iterate over all visible text blocks in the document.
-            while block.isValid():
-                line_count += 1
-                block_top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
-
-                # Check if the position of the block is out side of the visible
-                # area.
-                if not block.isVisible() or block_top >= event.rect().bottom():
-                    break
-
-                # # We want the line number for the selected line to be bold.
-                # if line_count == current_line:
-                #     font = painter.font()
-                #     font.setBold(True)
-                #     painter.setFont(font)
-                # else:
-                #     font = painter.font()
-                #     font.setBold(False)
-                #     painter.setFont(font)
-
-                # Draw the line number right justified at the position of the line.
-                paint_rect = QRect(0, block_top, number_bar.width(), font_metrics.height())
-                painter.drawText(paint_rect, Qt.AlignCenter, unicode(line_count))
-
-                block = block.next()
-
-            painter.end()
-
-    def __init__(self, *args):
-        QFrame.__init__(self, *args)
-
-        self.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
-
-        self.edit = self.PlainTextEdit()
-        self.number_bar = self.NumberBar(self.edit)
-
-        hbox = QHBoxLayout(self)
-        hbox.setSpacing(0)
-        hbox.setMargin(0)
-        hbox.addWidget(self.number_bar)
-        hbox.addWidget(self.edit)
-
-        self.edit.blockCountChanged.connect(self.number_bar.adjustWidth)
-        self.edit.updateRequest.connect(self.number_bar.updateContents)
-
-        # 设置字体
-        font = QFont()
-        font.setFamily("Monaco")
-        font.setPointSize(14)
-        self.setFont(font)
-
-
-        # 语法高亮
-        # MyHighlighter(self, "Classic")
-
-
-    def getText(self):
-        return unicode(self.edit.toPlainText())
-
-    def setText(self, text):
-        self.edit.setPlainText(text)
-
-    def isModified(self):
-        return self.edit.document().isModified()
-
-    def setModified(self, modified):
-        self.edit.document().setModified(modified)
-
-    def setLineWrapMode(self, mode):
-        self.edit.setLineWrapMode(mode)
-
-
-# 带文件栏的文本编辑框
-class TextEditwithDocBar(QWidget):
-    def __init__(self, parent = None):
-        QWidget.__init__(self, parent)
-
-        self.tabbar = TabBar(self)
-        self.textedit = LNTextEdit(self)
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.tabbar)
-        layout.addWidget(self.textedit)
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(layout)
-
-
-# 文本编辑器的语法高亮
-class MyHighlighter(QSyntaxHighlighter):
-    def __init__(self, parent, theme):
-        QSyntaxHighlighter.__init__(self, parent)
-        self.parent = parent
-        keyword = QTextCharFormat()
-        reservedClasses = QTextCharFormat()
-        assignmentOperator = QTextCharFormat()
-        delimiter = QTextCharFormat()
-        specialConstant = QTextCharFormat()
-        boolean = QTextCharFormat()
-        number = QTextCharFormat()
-        comment = QTextCharFormat()
-        string = QTextCharFormat()
-        singleQuotedString = QTextCharFormat()
-
-        self.highlightingRules = []
-
-        # keyword
-        brush = QBrush(Qt.darkBlue, Qt.SolidPattern)
-        keyword.setForeground(brush)
-        keyword.setFontWeight(QFont.Bold)
-        keywords = QStringList(["break", "else", "for", "if", "in",
-                                "next", "repeat", "return", "switch",
-                                "try", "while"])
-        for word in keywords:
-            pattern = QRegExp("\\b" + word + "\\b")
-            rule = HighlightingRule(pattern, keyword)
-            self.highlightingRules.append(rule)
-
-        # reservedClasses
-        reservedClasses.setForeground(brush)
-        reservedClasses.setFontWeight(QFont.Bold)
-        keywords = QStringList(["array", "character", "complex",
-                                "data.frame", "double", "factor",
-                                "function", "integer", "list",
-                                "logical", "matrix", "numeric",
-                                "vector"])
-        for word in keywords:
-            pattern = QRegExp("\\b" + word + "\\b")
-            rule = HighlightingRule(pattern, reservedClasses)
-            self.highlightingRules.append(rule)
-
-        # assignmentOperator
-        brush = QBrush(Qt.yellow, Qt.SolidPattern)
-        pattern = QRegExp("(<){1,2}-")
-        assignmentOperator.setForeground(brush)
-        assignmentOperator.setFontWeight(QFont.Bold)
-        rule = HighlightingRule(pattern, assignmentOperator)
-        self.highlightingRules.append(rule)
-
-        # delimiter
-        pattern = QRegExp("[\)\(]+|[\{\}]+|[][]+")
-        delimiter.setForeground(brush)
-        delimiter.setFontWeight(QFont.Bold)
-        rule = HighlightingRule(pattern, delimiter)
-        self.highlightingRules.append(rule)
-
-        # specialConstant
-        brush = QBrush(Qt.green, Qt.SolidPattern)
-        specialConstant.setForeground(brush)
-        keywords = QStringList(["Inf", "NA", "NaN", "NULL"])
-        for word in keywords:
-            pattern = QRegExp("\\b" + word + "\\b")
-            rule = HighlightingRule(pattern, specialConstant)
-            self.highlightingRules.append(rule)
-
-        # boolean
-        boolean.setForeground(brush)
-        keywords = QStringList(["TRUE", "FALSE"])
-        for word in keywords:
-            pattern = QRegExp("\\b" + word + "\\b")
-            rule = HighlightingRule(pattern, boolean)
-            self.highlightingRules.append(rule)
-
-        # number
-        pattern = QRegExp("[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?")
-        pattern.setMinimal(True)
-        number.setForeground(brush)
-        rule = HighlightingRule(pattern, number)
-        self.highlightingRules.append(rule)
-
-        # comment
-        brush = QBrush(Qt.blue, Qt.SolidPattern)
-        pattern = QRegExp("#[^\n]*")
-        comment.setForeground(brush)
-        rule = HighlightingRule(pattern, comment)
-        self.highlightingRules.append(rule)
-
-        # string
-        brush = QBrush(Qt.red, Qt.SolidPattern)
-        pattern = QRegExp("\".*\"")
-        pattern.setMinimal(True)
-        string.setForeground(brush)
-        rule = HighlightingRule(pattern, string)
-        self.highlightingRules.append(rule)
-
-        # singleQuotedString
-        pattern = QRegExp("\'.*\'")
-        pattern.setMinimal(True)
-        singleQuotedString.setForeground(brush)
-        rule = HighlightingRule(pattern, singleQuotedString)
-        self.highlightingRules.append(rule)
-
-    def highlightBlock(self, text):
-        for rule in self.highlightingRules:
-            expression = QRegExp(rule.pattern)
-            index = expression.indexIn(text)
-            while index >= 0:
-                length = expression.matchedLength()
-                self.setFormat(index, length, rule.format)
-                index = text.indexOf(expression, index + length)
-        self.setCurrentBlockState(0)
-
-
-# 文本编辑器的语法高亮规则
-class HighlightingRule():
-    def __init__(self, pattern, format):
-        self.pattern = pattern
-        self.format = format
-
-
-# 文件栏
-class TabBar(QTabBar):
-    def __init__(self, parent=None):
-        QTabBar.__init__(self, parent)
-
-        self.setTabsClosable(True)  # tab可关闭
-        self.connect(self, SIGNAL("tabCloseRequested(int)"), self.closeTab)  # 点击tab上的关闭按钮触发该tab被移除
-
-        tab1 = self.addTab("Test1")
-        tab2 = self.addTab("Test2")
-        tab3 = self.addTab("Test3")
-
-    def closeTab(self, currentIndex):
-        self.removeTab(currentIndex)
+from codeeditor import *
+from console import *
+from sidebar import *
 
 
 # 总控程序
@@ -329,19 +14,28 @@ class Nucleon(QMainWindow):
     def __init__(self):
         super(Nucleon, self).__init__()
 
+        self.currentFile = ''   # 当前已保存文件带路径的文件名，当前无文件或者新建文件未保存时为空字符串
+        self.flagConsoleVisible = 1     # 控制台是否显示
+        self.DocList = []   # 打开过的文件列表
+
         self.initUI()
+
+        self.setCurrentFile('')
 
         self.createActions()
         self.createMenus()
-        # self.createToolBar()
+        self.createToolBar()
         self.createStatusBar()
-        # self.createTabbar()
-        # self.createTreeView()
 
+        # 当编辑框内容改变，在窗体上显示修改标志
+        self.textedit_docbar.textedit.edit.document().contentsChanged.connect(self.documentWasModified)
 
 
 
     def createActions(self):
+
+        ### File ###
+
         # 新建文件
         self.newFileAct = QAction('&New', self)
         self.newFileAct.setShortcut(QKeySequence.New)
@@ -350,18 +44,19 @@ class Nucleon(QMainWindow):
         # 打开文件
         self.openFileAct = QAction('&Open', self)
         self.openFileAct.setShortcut(QKeySequence.Open)
-        self.connect(self.openFileAct, SIGNAL('triggered()'), self.openFile)
+        self.connect(self.openFileAct, SIGNAL('triggered()'), self.open)
 
         # 保存文件
         self.saveFileAct = QAction('&Save', self)
         self.saveFileAct.setShortcut(QKeySequence.Save)
-        self.connect(self.saveFileAct, SIGNAL('triggered()'), self.saveFile)
-        self.flagFileSaved = False  # 文件是否被修改，PlainTextEdit 并不能设置 setModified，所以自己做了一个旗帜
+        self.connect(self.saveFileAct, SIGNAL('triggered()'), self.save)
 
         # 文件另存为
         self.saveAsAct = QAction('Save &As', self)
         self.saveAsAct.setShortcut(QKeySequence.SaveAs)
-        self.connect(self.openFileAct, SIGNAL('triggered()'), self.openFile)
+        self.connect(self.saveAsAct, SIGNAL('triggered()'), self.saveAs)
+
+        ### Edit ###
 
         # 剪切
         self.cutAct = QAction('&Cut', self)
@@ -378,115 +73,325 @@ class Nucleon(QMainWindow):
         self.pasteAct.setShortcut(QKeySequence.Paste)
         self.connect(self.pasteAct, SIGNAL('triggered()'), self.textedit_docbar.textedit.edit.paste)
 
+        # 撤销
+        self.undoAct = QAction('&Undo', self)
+        self.undoAct.setShortcut(QKeySequence.Undo)
+        self.connect(self.undoAct, SIGNAL('triggered()'), self.textedit_docbar.textedit.edit.undo)
+
+        # 能剪切时才能剪切，能复制时才能复制，能撤销时才能撤销
+        self.cutAct.setEnabled(False)
+        self.copyAct.setEnabled(False)
+        self.undoAct.setEnabled(False)
+        self.textedit_docbar.textedit.edit.copyAvailable.connect(self.cutAct.setEnabled)
+        self.textedit_docbar.textedit.edit.copyAvailable.connect(self.copyAct.setEnabled)
+        self.textedit_docbar.textedit.edit.copyAvailable.connect(self.undoAct.setEnabled)
+
+        ### View ###
+
+        # Toggle ToolBar
+        self.toggleToolBarAct = QAction('Toggle &ToolBar', self)
+        self.connect(self.toggleToolBarAct, SIGNAL('triggered()'), self.hideToolBar)
+
+        # Toggle DocBar
+        self.toggleDocBarAct = QAction('Toggle &DocBar', self)
+        self.connect(self.toggleDocBarAct, SIGNAL('triggered()'), self.hideDocBar)
+
+        # Toggle SideBar
+        self.toggleSideBarAct = QAction('Toggle &SideBar', self)
+        self.connect(self.toggleSideBarAct, SIGNAL('triggered()'), self.hideSideBar)
+
+        # Toggle Console
+        self.toggleConsoleAct = QAction('Toggle &Console', self)
+        self.connect(self.toggleConsoleAct, SIGNAL('triggered()'), self.hideConsole)
+
+        # Toggle StatusBar
+        self.toggleStatusBarAct = QAction('Toggle &StatusBar', self)
+        self.connect(self.toggleStatusBarAct, SIGNAL('triggered()'), self.hideStatusBar)
+
+
+        ### Code ###
+
+        # Run
+        # self.runAct = QAction('&Run', self)
+        # self.connect(self.runAct, SIGNAL('triggered()'), self.console_runbutton.buttonbar.runbutton.clicked())
+
+        # C Code
+        # self.CCodeAct = QAction('C &Code', self)
+
+        # ASM Code
+        # self.ASMCodeAct = QAction('ASM &Code', self)
+
+        # COE Code
+        # self.COECodeAct = QAction('COE &Code', self)
+
+
+
+        ### About ###
+
         # 关于 Nucleon
-        self.aboutAct = QAction('&About', self)
-        self.connect(self.aboutAct, SIGNAL('triggered()'), self.aboutNucleon)
+        self.aboutNucleonAct = QAction('&About', self)
+        self.connect(self.aboutNucleonAct, SIGNAL('triggered()'), self.about)
 
         # 关于 Qt
         self.aboutQtAct = QAction('About &Qt', self)
-        self.connect(self.aboutQtAct, SIGNAL('triggered()'), QApplication.aboutQt)
+        self.connect(self.aboutQtAct, SIGNAL('triggered()'), self.aboutQt)
 
 
-    # 当前文件
-    # def setCurrentFile(self, fileName):
+    # 创建菜单栏
+    def createMenus(self):
+        self.menubar = self.menuBar()
+
+        # File Menu
+        self.fileMenu = self.menubar.addMenu('&File')
+        self.fileMenu.addAction(self.newFileAct)
+        self.fileMenu.addAction(self.openFileAct)
+        self.fileMenu.addAction(self.saveFileAct)
+        self.fileMenu.addAction(self.saveAsAct)
+
+        # Edit Menu
+        self.editMenu = self.menubar.addMenu('&Edit')
+        self.editMenu.addAction(self.cutAct)
+        self.editMenu.addAction(self.copyAct)
+        self.editMenu.addAction(self.pasteAct)
+        self.editMenu.addAction(self.undoAct)
+
+        # View Menu
+        self.viewMenu = self.menubar.addMenu('&View')
+        self.viewMenu.addAction(self.toggleToolBarAct)
+        self.viewMenu.addAction(self.toggleDocBarAct)
+        self.viewMenu.addAction(self.toggleSideBarAct)
+        self.viewMenu.addAction(self.toggleConsoleAct)
+        self.viewMenu.addAction(self.toggleStatusBarAct)
+
+        # Code Menu
+        self.codeMenu = self.menubar.addMenu('&Code')
+        # self.codeMenu.addAction(self.runAct)
+        # self.codeMenu.addAction(self.CcodeAct)
+        # self.codeMenu.addAction(self.ASMcodeAct)
+        # self.codeMenu.addAction(self.COEcodeAct)
+
+        # About Menu
+        # 蜜汁问题！！！
+        self.aboutMenu = self.menubar.addMenu('&About')
+        self.aboutMenu.addAction(self.aboutNucleonAct)
+        self.aboutMenu.addAction(self.aboutQtAct)
+
+        # Help Menu
+        self.helpMenu = self.menubar.addMenu('&Help')
 
 
 
+    # 工具栏
+    def createToolBar(self):
+
+        # File Tool
+        self.fileToolBar = self.addToolBar("File")
+        self.fileToolBar.addAction(self.newFileAct)
+        self.fileToolBar.addAction(self.openFileAct)
+        self.fileToolBar.addAction(self.saveFileAct)
+        self.fileToolBar.addAction(self.saveAsAct)
+
+        # Edit Tool
+        self.editToolBar = self.addToolBar("Edit")
+        self.editToolBar.addAction(self.cutAct)
+        self.editToolBar.addAction(self.copyAct)
+        self.editToolBar.addAction(self.pasteAct)
+        self.editToolBar.addAction(self.undoAct)
+
+        # 一开始不显示 ToolBar
+        self.fileToolBar.setVisible(False)
+        self.editToolBar.setVisible(False)
+
+
+    # ToolBar的隐藏与显示
+    def hideToolBar(self):
+        vToolBar = self.fileToolBar.isVisible()
+        self.fileToolBar.setVisible(not vToolBar)
+        self.editToolBar.setVisible(not vToolBar)
+
+    # DocBar的隐藏与显示
+    def hideDocBar(self):
+        vDocBar = self.textedit_docbar.docbar.isVisible()
+        self.textedit_docbar.docbar.setVisible(not vDocBar)
+
+    # SideBar的隐藏与显示
+    def hideSideBar(self):
+        vSideBar = self.sidebar.isVisible()
+        self.sidebar.setVisible(not vSideBar)
+
+    # Console的隐藏与显示
+    def hideConsole(self):
+        vConsole = self.console_button.isVisible()
+        self.console_button.setVisible(not vConsole)
+
+    # StatusBar的隐藏与显示
+    def hideStatusBar(self):
+        vStatusBar = self.statusbar.isVisible()
+        self.statusbar.setVisible(not vStatusBar)
+
+
+    # 创建状态栏
+    def createStatusBar(self):
+        self.statusbar = self.statusBar()
+        self.statusbar.showMessage("Welcome to Nucleon!")
+
+
+    # 设置当前文件
+    # self.shownName: 当前文件名
+    # self.shownPath: 当前路径
+    def setCurrentFile(self, fileName):
+        self.currentFile = fileName
+        self.textedit_docbar.textedit.setModified(False)
+        self.setWindowModified(False)
+
+        if self.currentFile:
+            self.shownName = self.pureName(self.currentFile)
+            self.shownPath = self.purePath(self.currentFile)
+        else:
+            self.shownName = 'untitled'
+            self.shownPath = ''
+
+        self.setWindowTitle("%s  %s" %(self.shownName, self.shownPath))
+        self.console_button.buttonbar.doclabel.setText(self.shownName)
 
 
     # 新建文件
     def newFile(self):
-        if self.maybeSave():    # 新建文件时 maybeSave() 必为真
-            self.textedit_docbar.textedit.clear()
-            self.setCurrentFile('')
+        if self.maybeSave():    # 新建文件前如果在编辑框输入了内容会询问是否要保存
+            self.textedit_docbar.textedit.edit.clear()  # 清空编辑框
+            self.setCurrentFile('untitled')     # 设置当前文件名为 untitled
 
-        self.statusBar().showMessage("File created!")
+            # 在 DocBar 添加 DocTab
+            self.textedit_docbar.docbar.addDocTab(self.shownName)
 
-    # 另存为
-    # def saveAs(self):
+            # statusbar
+            self.statusbar.showMessage("File created!")
+
+
+    # 打开文件
+    def open(self):
+        if self.maybeSave():    # 打开文件前如果在编辑框中输入了内容会询问是否保存
+            fileName = QFileDialog.getOpenFileName(self)
+            if fileName:
+                self.loadFile(fileName)
+                self.textedit_docbar.docbar.addDocTab(self.shownName)   # 添加对应的 DocTab
+                self.sidebar.updateSideBar()
+                self.statusbar.showMessage("File opened!")
+
+
+    # 载入文件到编辑框
+    # fileName 是带路径的文件名
+    def loadFile(self, fileName):
+
+        file = QFile(fileName)
+        if not file.open(QFile.ReadOnly | QFile.Text):
+            QMessageBox.warning(
+                self, "Warning",
+                "Cannot read file %s:\n%s." % (fileName, file.errorString()))
+            return False
+
+        inf = QTextStream(file)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.textedit_docbar.textedit.edit.setPlainText(inf.readAll())
+        QApplication.restoreOverrideCursor()
+
+        self.setCurrentFile(fileName)
+        self.statusbar.showMessage("File loaded!")
+
+
+    # 保存文件
+    def save(self):
+        if self.currentFile:    # 如果有当前文件，直接保存
+            return self.saveFile(self.currentFile)
+
+        return self.saveAs()    # 如果没有当前文件，文件另存为
+
+    # 文件另存为
+    def saveAs(self):
+        fileName = QFileDialog.getSaveFileName(self)
+
+        if fileName:
+            return self.saveFile(fileName)
+
+        return False
+
+
+    # 保存文件
+    def saveFile(self, fileName):
+
+        file = QFile(fileName)
+        if not file.open(QFile.WriteOnly | QFile.Text):
+            QMessageBox.warning(
+                self, "Warning",
+                "Cannot write file %s:\n%s." % (fileName, file.errorString()))
+            return False
+
+        outf = QTextStream(file)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        outf << self.textedit_docbar.textedit.edit.toPlainText()
+        QApplication.restoreOverrideCursor()
+
+        self.setCurrentFile(fileName)
+        self.statusbar.showMessage("File saved!")
+        return True
+
+
+
+
 
     # 最近文件
     # def recentFile(self):
 
 
-    # 打开并读取文件到编辑框
-    def openFile(self):
-        self.currentFilePath = QFileDialog.getOpenFileName(self, 'Open file', '/Users/yanshengjia/Desktop')
-        f = open(self.currentFilePath)
-        data = f.read()
-        self.textedit_docbar.textedit.setText(data)
-
-        self.statusBar().showMessage("File loaded!")
-
-    # 保存文件
-    def saveFile(self):
-        f = open(self.currentFilePath, 'w')
-        f.write(self.textedit_docbar.textedit.edit.toPlainText())
-
-        self.flagFileSaved = True
-        self.statusBar().showMessage("File saved!")
-        return True
-
     # 关于 Nucleon
-    def aboutNucleon(self):
+    def about(self):
         QMessageBox.about(
             self,
-            "About Nucleon",
-            "Nucleon \n 1.0 \n a lightweight and elegant IDE")
+            "About",
+            "Nucleon 1.0 a lightweight and elegant IDE")
+
+
+    # 关于 Qt
+    def aboutQt(self):
+        QMessageBox.aboutQt(self, "About Qt")
+
 
     # 关闭程序时询问是否退出
     def closeEvent(self, event):
-        if not self.flagFileSaved:
-            if self.maybeSave():
-                event.accept()
-            else:
-                event.ignore()
-        else:
+        if self.maybeSave():
             event.accept()
+        else:
+            event.ignore()
+
 
     # 检测文件内容是否修改
     def maybeSave(self):
+        if self.textedit_docbar.textedit.getText() == '' and self.currentFile == '':
+            return True
+
         if self.textedit_docbar.textedit.edit.document().isModified():
-            self.flagFileSaved = False
             ret = QMessageBox.warning(
                 self, "Message",
                 u"Do you want to save the changes?",
                 QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
             if ret == QMessageBox.Save:
-                return self.saveFile()
+                return self.save()
             elif ret == QMessageBox.Cancel:
                 return False
         return True
 
-    # 创建菜单栏
-    def createMenus(self):
-        menubar = self.menuBar()
 
-        # File
-        fileMenu = menubar.addMenu('&File')
-        fileMenu.addAction(self.openFileAct)
-        fileMenu.addAction(self.saveFileAct)
+    # 返回不带路径的文件名
+    def pureName(self, fileName):
+        return QFileInfo(fileName).fileName()
 
-        # Edit
-        editMenu = menubar.addMenu('&Edit')
+    # 返回不带文件名的路径
+    def purePath(self, fileName):
+        return QFileInfo(fileName).path()
 
-        # View
-        viewMenu = menubar.addMenu('&View')
-
-        # Run
-        runMenu = menubar.addMenu('&Run')
-
-        # Window
-        windowMenu = menubar.addMenu('&Window')
-
-        # About
-        aboutMenu = menubar.addMenu('&About')
-        # aboutMenu.addAction(self.aboutAct)
-
-    # 创建状态栏
-    def createStatusBar(self):
-        statusbar = self.statusBar()
-        statusbar.showMessage("Welcome to Nucleon!")
+    # 文件是否被修改
+    def documentWasModified(self):
+        self.setWindowModified(self.textedit_docbar.textedit.edit.document().isModified())
 
     # 窗体居中
     def center(self):
@@ -497,43 +402,41 @@ class Nucleon(QMainWindow):
     # UI初始化
     def initUI(self):
 
-        widget = QWidget()
-        self.setCentralWidget(widget)
+        self.widget = QWidget()
+        self.setCentralWidget(self.widget)
 
-        # 控件 SideBar, Console, TextEditwithDocBar
+        # 控件
         self.sidebar = SideBar(self)
-        self.console = Console(self)
+        self.console_button = ConsolewithButton(self)
         self.textedit_docbar = TextEditwithDocBar(self)
 
+        # 初始隐藏或显示 Console
+        if self.flagConsoleVisible:
+            self.console_button.setVisible(True)
+        else:
+            self.console_button.setVisible(False)
+
         # 右部水平分割线
-        splitter1 = QSplitter(Qt.Vertical)
-        splitter1.addWidget(self.textedit_docbar)
-        splitter1.addWidget(self.console)
-        splitter1.setHandleWidth(1)
+        self.splitter1 = QSplitter(Qt.Vertical)
+        self.splitter1.addWidget(self.textedit_docbar)
+        self.splitter1.addWidget(self.console_button)
+        self.splitter1.setStretchFactor(5, 1)  # textedit_docbar 与 console_runbutton 的宽度之比为1:5
+        self.splitter1.setHandleWidth(1)
 
         # 垂直分割线
-        splitter2 = QSplitter(Qt.Horizontal)
-        splitter2.addWidget(self.sidebar)
-        splitter2.addWidget(splitter1)
-        splitter2.setHandleWidth(1)
+        self.splitter2 = QSplitter(Qt.Horizontal)
+        self.splitter2.addWidget(self.sidebar)
+        self.splitter2.addWidget(self.splitter1)
+        self.splitter2.setStretchFactor(1, 5)   # sidebar 与 splitter1 的宽度之比为1:5
+        self.splitter2.setHandleWidth(1)
 
         hbox = QHBoxLayout()
         hbox.setSpacing(0)      # 去除控件间距
-        hbox.setContentsMargins(0, 0, 0, 0)     # 去除layout四周外边距
-        hbox.addWidget(splitter2)
-        widget.setLayout(hbox)
+        hbox.setContentsMargins(1, 1, 1, 1)     # layout四周外边距
+        hbox.addWidget(self.splitter2)
+        self.widget.setLayout(hbox)
 
         # 窗体标题，大小，居中
         self.setWindowTitle('Nucleon')
         self.resize(960, 720)
         self.center()
-
-
-def main():
-    app = QApplication([])
-    window = Nucleon()
-    window.show()
-    app.exec_()
-
-if __name__ == '__main__':
-    main()

@@ -1,0 +1,27 @@
+RunButton{
+	background-color: rgb(0, 255, 0);
+	border: none;
+	font-size: 14px;
+	font-family: "Monaco";
+	text-align: center
+}
+
+RunButton::hover, RunButton::checked, RunButton::pressed{
+	background-color: rgb(0, 191, 255);
+	font-size: 14px;
+	font-family: "Monaco";
+	text-align: center
+}
+
+DocButton{
+	border: none;
+	font-size: 14px;
+	font-family: "Monaco";
+	text-align: center
+}
+
+DocButton::hover, DocButton::checked, DocButton::pressed{
+	font-size: 14px;
+	font-family: "Monaco";
+	text-align: center
+}

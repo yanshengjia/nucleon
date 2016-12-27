@@ -3,11 +3,14 @@
 
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
+from nucleon import *
 
 # 带运行按钮的控制台
 class ConsolewithButton(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
+
+        self.parent_Nucleon = parent
 
         self.setMinimumHeight(30)
 
@@ -29,6 +32,8 @@ class Console(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
 
+        self.parent_ConsolewithButton = parent
+
         self.setAutoFillBackground(True)
         p = self.palette()
         p.setColor(QPalette.Window, QColor("#080808"))
@@ -43,16 +48,18 @@ class ButtonBar(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
 
+        self.parent_ConsolewithButton = parent
+
         self.setMinimumHeight(20)
         self.setMaximumHeight(20)
         self.setStyleSheet("font-family: Monaco")
 
         # 运行按钮
-        self.runbutton = RunButton()
+        self.runbutton = RunButton(self)
         self.runbutton.setFixedSize(50, 20)
 
         # 文件标签
-        self.doclabel = DocButton()
+        self.doclabel = DocButton(self)
         self.doclabel.setMinimumHeight(20)
         self.doclabel.setMaximumHeight(20)
 
@@ -72,6 +79,8 @@ class RunButton(QPushButton):
     def __init__(self, parent = None):
         QPushButton.__init__(self, parent)
 
+        self.parent_ButtonBar = parent
+
         self.setText("Run")
 
 
@@ -80,7 +89,8 @@ class DocButton(QPushButton):
     def __init__(self, parent = None):
         QPushButton.__init__(self, parent)
 
-        self.setText("untitled")
+        self.parent_ButtonBar = parent
+
 
 
 

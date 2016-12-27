@@ -1,7 +1,7 @@
 # !/usr/bin/python
 # coding=utf8
 
-# 计算机综合课程设计：轻量级IDE
+# 计算机综合课程设计：qt-mini-IDE
 # Created by Shengjia Yan @2016-12-19
 
 from codeeditor import *
@@ -14,13 +14,17 @@ class Nucleon(QMainWindow):
     def __init__(self):
         super(Nucleon, self).__init__()
 
-        self.currentFile = ''   # 当前已保存文件带路径的文件名，当前无文件或者新建文件未保存时为空字符串
-        self.flagConsoleVisible = 1     # 控制台是否显示
-        self.DocList = []   # 打开过的文件列表
+        self.currentFile = ''           # 当前已保存文件带路径的文件名，当前无文件为空字符串, 新建文件未保存时为 untitled
+        self.shownName = ''             # 初始文件名
+        self.shownPath = ''             # 初始文件路径
+        self.doclist = []               # 打开过的文件列表
+        self.docquantity = len(self.doclist)    # 文件个数
+
+        self.flagConsoleVisible = True  # 是否显示控制台
+        self.flagAddDocTab = True       # 是否添加 DocTab
+        self.flagPrintDoclist = True    # 是否打印 doclist
 
         self.initUI()
-
-        self.setCurrentFile('')
 
         self.createActions()
         self.createMenus()
@@ -30,8 +34,11 @@ class Nucleon(QMainWindow):
         # 当编辑框内容改变，在窗体上显示修改标志
         self.textedit_docbar.textedit.edit.document().contentsChanged.connect(self.documentWasModified)
 
+    # 删除 doclist 中下标为 index 的元素
+    def delete(self, index):
+        self.doclist = self.doclist[:index] + self.doclist[index + 1:]
 
-
+    # 动作集
     def createActions(self):
 
         ### File ###
@@ -236,7 +243,9 @@ class Nucleon(QMainWindow):
         self.statusbar.showMessage("Welcome to Nucleon!")
 
 
-    # 设置当前文件
+    # 设置当前文件，获取 当前文件名 和 当前路径
+    # 新建文件 currentFile == 'untitled'
+    # 打开文件 currentFile == '打开的文件的带路径的文件名'
     # self.shownName: 当前文件名
     # self.shownPath: 当前路径
     def setCurrentFile(self, fileName):
@@ -249,9 +258,12 @@ class Nucleon(QMainWindow):
             self.shownPath = self.purePath(self.currentFile)
         else:
             self.shownName = 'untitled'
-            self.shownPath = ''
 
-        self.setWindowTitle("%s  %s" %(self.shownName, self.shownPath))
+        if self.shownName == 'untitled':
+            self.setWindowTitle('untitled')
+        else:
+            self.setWindowTitle("%s  %s" % (self.shownName, self.shownPath))
+
         self.console_button.buttonbar.doclabel.setText(self.shownName)
 
 
@@ -261,8 +273,12 @@ class Nucleon(QMainWindow):
             self.textedit_docbar.textedit.edit.clear()  # 清空编辑框
             self.setCurrentFile('untitled')     # 设置当前文件名为 untitled
 
-            # 在 DocBar 添加 DocTab
-            self.textedit_docbar.docbar.addDocTab(self.shownName)
+            self.doclist.append('null') # 文件列表添加 null
+            self.textedit_docbar.docbar.addDocTab(self.shownName)   # 在 DocBar 添加 DocTab
+
+            if self.flagPrintDoclist:
+                print self.doclist
+
 
             # statusbar
             self.statusbar.showMessage("File created!")
@@ -274,8 +290,14 @@ class Nucleon(QMainWindow):
             fileName = QFileDialog.getOpenFileName(self)
             if fileName:
                 self.loadFile(fileName)
+                self.doclist.append(self.currentFile)  # 将打开的带路径的文件名加入 doclist
                 self.textedit_docbar.docbar.addDocTab(self.shownName)   # 添加对应的 DocTab
-                self.sidebar.updateSideBar()
+
+                if self.flagPrintDoclist:
+                    print self.doclist
+
+                self.sidebar.updateSideBar(self.shownPath)              # 更新对应的 SideBar
+
                 self.statusbar.showMessage("File opened!")
 
 
@@ -292,26 +314,41 @@ class Nucleon(QMainWindow):
 
         inf = QTextStream(file)
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        self.textedit_docbar.textedit.edit.setPlainText(inf.readAll())
+        self.textedit_docbar.textedit.setText(inf.readAll())
         QApplication.restoreOverrideCursor()
 
         self.setCurrentFile(fileName)
+
         self.statusbar.showMessage("File loaded!")
 
 
     # 保存文件
     def save(self):
-        if self.currentFile:    # 如果有当前文件，直接保存
+        if self.currentFile != 'untitled':    # 如果当前文件是被打开的，直接保存在原路径
             return self.saveFile(self.currentFile)
 
-        return self.saveAs()    # 如果没有当前文件，文件另存为
+        return self.saveAs()    # 如果当前文件是新建的，文件另存为
 
     # 文件另存为
     def saveAs(self):
         fileName = QFileDialog.getSaveFileName(self)
 
         if fileName:
-            return self.saveFile(fileName)
+            ret = self.saveFile(fileName)
+
+            currentIndex = self.textedit_docbar.docbar.currentIndex()
+
+            # 更新 DocBar
+            self.textedit_docbar.docbar.updateDocTab(currentIndex, self.shownName)
+
+            # 更新 SideBar
+            self.sidebar.updateSideBar(self.shownPath)
+
+            # 更新 doclist
+            self.doclist[currentIndex] = fileName
+
+            if self.flagPrintDoclist:
+                print self.doclist
 
         return False
 
@@ -334,9 +371,6 @@ class Nucleon(QMainWindow):
         self.setCurrentFile(fileName)
         self.statusbar.showMessage("File saved!")
         return True
-
-
-
 
 
     # 最近文件
@@ -364,12 +398,12 @@ class Nucleon(QMainWindow):
             event.ignore()
 
 
-    # 检测文件内容是否修改
+    # 修改的文件内容是否需要保存
     def maybeSave(self):
-        if self.textedit_docbar.textedit.getText() == '' and self.currentFile == '':
+        if self.textedit_docbar.textedit.getText() == '' and self.currentFile == 'untitled' and self.textedit_docbar.docbar.tabquantity == 1:
             return True
 
-        if self.textedit_docbar.textedit.edit.document().isModified():
+        if self.textedit_docbar.textedit.isModified():
             ret = QMessageBox.warning(
                 self, "Message",
                 u"Do you want to save the changes?",
@@ -389,9 +423,21 @@ class Nucleon(QMainWindow):
     def purePath(self, fileName):
         return QFileInfo(fileName).path()
 
-    # 文件是否被修改
+    # 文件是否被修改，被修改在窗体显示修改标志，初始修改增加DocTab
     def documentWasModified(self):
-        self.setWindowModified(self.textedit_docbar.textedit.edit.document().isModified())
+        self.setWindowModified(self.textedit_docbar.textedit.isModified())
+
+        # # DocBar 没有 DocTab 时，修改编辑框内容可以添加 DocTab
+        # if self.textedit_docbar.docbar.count() == 0:
+        #     self.flagAddDocTab = True
+        #
+        # # 当前文件为空 且 能添加 DocTab 时 添加DocTab，只能添加一次
+        # if self.currentFile == '' and self.flagAddDocTab:
+        #     self.textedit_docbar.docbar.addDocTab(self.shownName)
+        #     self.flagAddDocTab = False
+
+
+
 
     # 窗体居中
     def center(self):
@@ -427,7 +473,7 @@ class Nucleon(QMainWindow):
         self.splitter2 = QSplitter(Qt.Horizontal)
         self.splitter2.addWidget(self.sidebar)
         self.splitter2.addWidget(self.splitter1)
-        self.splitter2.setStretchFactor(1, 5)   # sidebar 与 splitter1 的宽度之比为1:5
+        self.splitter2.setStretchFactor(1, 7)   # sidebar 与 splitter1 的宽度之比为1:5
         self.splitter2.setHandleWidth(1)
 
         hbox = QHBoxLayout()

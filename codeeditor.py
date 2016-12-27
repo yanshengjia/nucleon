@@ -1,13 +1,17 @@
 # !/usr/bin/python
 # coding=utf8
 
+from PyQt4.QtGui import *
+from PyQt4.QtCore import *
+from nucleon import *
 from docbar import *
-
 
 # 带文件栏的文本编辑框
 class TextEditwithDocBar(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
+
+        self.parent_Nucleon = parent
 
         self.docbar = DocBar(self)
         self.textedit = LNTextEdit(self)
@@ -111,8 +115,10 @@ class LNTextEdit(QFrame):
 
             painter.end()
 
-    def __init__(self, *args):
-        QFrame.__init__(self, *args)
+    def __init__(self, parent = None):
+        QFrame.__init__(self, parent)
+
+        self.parent_TextEditwithDocBar = parent
 
         self.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
 

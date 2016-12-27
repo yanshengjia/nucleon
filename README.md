@@ -50,11 +50,13 @@
     * Paste
     * Undo
 
-* **SideBar**
-  * 资源视图 TreeView 显示当前文件所在目录的树形结构 *
+* SideBar
+  * TreeView
+    * headerData 修改为 Project
+    * 与文件系统的链接 实时更新 *
 
-* **DocBar** 
-  * 动态增减 *
+* DocBar 
+  * 与文件系统的链接 动态增减 *
   * Closeable
   * Moveable *
 
@@ -65,7 +67,7 @@
 
 * Console
 
-  * 运行按钮 *
+  * 运行按钮
   * Ctrl+B调用 *
   * ESC退出 *
   * 显示输出 *

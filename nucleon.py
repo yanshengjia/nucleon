@@ -273,12 +273,18 @@ class Nucleon(QMainWindow):
             self.textedit_docbar.textedit.edit.clear()  # 清空编辑框
             self.setCurrentFile('untitled')     # 设置当前文件名为 untitled
 
-            self.doclist.append('null') # 文件列表添加 null
+            self.doclist.append('null')     # 文件列表添加 null
             self.textedit_docbar.docbar.addDocTab(self.shownName)   # 在 DocBar 添加 DocTab
+
+            index = self.textedit_docbar.docbar.count()
+            curindex = self.textedit_docbar.docbar.currentIndex()
+            print index
+            print curindex
+            self.textedit_docbar.docbar.setCurrentIndex(index)
+            print curindex
 
             if self.flagPrintDoclist:
                 print self.doclist
-
 
             # statusbar
             self.statusbar.showMessage("File created!")

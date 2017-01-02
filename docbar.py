@@ -16,9 +16,11 @@ class DocBar(QTabBar):
         self.tabquantity = self.count()    # tab 数量
 
         self.setTabsClosable(True)  # tab可关闭
+        # self.setMovable(True)       # tab可移动
+
         self.connect(self, SIGNAL("tabCloseRequested(int)"), self.closeDocTab)
         self.connect(self, SIGNAL("currentChanged(int)"), self.tabSelected)
-        self.connect(self, SIGNAL("currentChanged(int)"), self, SLOT("setCurrentIndex(int)"))
+
 
     # 点击tab上的关闭按钮触发该tab被移除
     # 关闭文件Tab，currentIndex是当前关闭的tab索引
@@ -74,4 +76,3 @@ class DocBar(QTabBar):
                 shownPath = self.parent_TextEditwithDocBar.parent_Nucleon.shownPath
 
                 self.parent_TextEditwithDocBar.parent_Nucleon.setWindowTitle("%s  %s" % (shownName, shownPath))
-

@@ -71,7 +71,7 @@ class ButtonBar(QWidget):
         layout.setAlignment(Qt.AlignLeft)
 
         self.setLayout(layout)
-        self.setStyleSheet(open("./qss/buttonbar.qss", 'r').read())
+        self.setStyleSheet(open("../qss/buttonbar.qss", 'r').read())
 
 
 # 运行按钮

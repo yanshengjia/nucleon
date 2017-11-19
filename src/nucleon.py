@@ -278,10 +278,7 @@ class Nucleon(QMainWindow):
 
             index = self.textedit_docbar.docbar.count()
             curindex = self.textedit_docbar.docbar.currentIndex()
-            print index
-            print curindex
             self.textedit_docbar.docbar.setCurrentIndex(index)
-            print curindex
 
             if self.flagPrintDoclist:
                 print self.doclist
@@ -441,8 +438,6 @@ class Nucleon(QMainWindow):
         # if self.currentFile == '' and self.flagAddDocTab:
         #     self.textedit_docbar.docbar.addDocTab(self.shownName)
         #     self.flagAddDocTab = False
-
-
 
 
     # 窗体居中

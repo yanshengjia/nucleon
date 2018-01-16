@@ -138,10 +138,12 @@ class Nucleon(QMainWindow):
         # 关于 Nucleon
         self.aboutNucleonAct = QAction('&About', self)
         self.connect(self.aboutNucleonAct, SIGNAL('triggered()'), self.about)
+        self.aboutNucleonAct.setMenuRole(QAction.NoRole)
 
         # 关于 Qt
         self.aboutQtAct = QAction('About &Qt', self)
         self.connect(self.aboutQtAct, SIGNAL('triggered()'), self.aboutQt)
+        self.aboutQtAct.setMenuRole(QAction.NoRole)
 
 
     # 创建菜单栏
@@ -251,7 +253,7 @@ class Nucleon(QMainWindow):
     def setCurrentFile(self, fileName):
         self.currentFile = fileName
         self.textedit_docbar.textedit.setModified(False)
-        self.setWindowModified(False)
+        self.setWindowModified(False)   # 在窗口左上角的关闭按钮上显示一个小点
 
         if self.currentFile:
             self.shownName = self.pureName(self.currentFile)
